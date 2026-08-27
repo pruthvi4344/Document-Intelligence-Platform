@@ -1,0 +1,100 @@
+# Document Intelligence Platform
+
+A full-stack **RAG (Retrieval-Augmented Generation)** document intelligence platform. Upload PDFs, DOCX, and TXT files, then search across them semantically, chat with them and get AI-generated answers with citations back to the exact source passage, get auto-generated summaries, and run structured "workflows" like contract clause extraction or resume-vs-job-description comparison.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full technical spec, database schema, and API design.
+
+## Features
+
+- **Semantic search** across uploaded documents (not just keyword matching), powered by `pgvector`
+- **Citation-grounded chat** — ask natural-language questions and get streamed AI answers that cite the exact source document/page
+- **Automatic summarization** of individual documents and collections
+- **Structured workflows**, including:
+  1. Document summarization
+  2. Multi-document Q&A / chat
+  3. Contract clause extraction
+  4. Resume ↔ job description match
+  5. Meeting notes digest
+  6. Comparative analysis across documents
+- **Collections/folders** to organize documents
+- **Async ingestion pipeline** — uploads return immediately (`status: processing`) while parsing/chunking/embedding happens in the background via Celery
+- **JWT authentication** (access + refresh tokens)
+- **Swappable providers** for LLMs (Groq by default, OpenAI supported) and embeddings (local `sentence-transformers` by default) via a provider interface, so switching later is a config change, not a rewrite
+
+## Tech Stack
+
+- **Backend:** Python 3.11, FastAPI, SQLAlchemy, Alembic
+- **Orchestration:** LangChain (LCEL)
+- **LLM:** Groq (Llama 3.3 70B) by default, with an OpenAI-compatible provider interface
+- **Embeddings:** `sentence-transformers` (`all-MiniLM-L6-v2`) run locally by default
+- **Vector store / database:** PostgreSQL + `pgvector`
+- **Cache / queue broker:** Redis
+- **Background jobs:** Celery
+- **File storage:** S3-compatible storage (MinIO locally, S3/R2 in production)
+- **Containerization:** Docker + docker-compose
+
+## Getting Started
+
+### Prerequisites
+
+- Docker and Docker Compose
+- (Optional, for running the API outside Docker) Python 3.11+
+
+### Installation
+
+1. Clone the repository:
+
+   ```bash
+   git clone <repo-url>
+   cd Document-Intelligence-Platform
+   ```
+
+2. Create your backend environment file from the example:
+
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
+
+   At minimum, set an LLM API key (e.g. `GROQ_API_KEY`) if you want chat/workflow features to work.
+
+3. Start all services (Postgres + pgvector, Redis, MinIO, API, Celery worker):
+
+   ```bash
+   docker compose up --build
+   ```
+
+   On first run, the `api` service automatically applies database migrations (`alembic upgrade head`) before starting.
+
+4. The API is now available at `http://localhost:8001`, with interactive docs at `http://localhost:8001/docs`.
+
+### Running tests
+
+Tests live under `backend/tests`. If you have a Python environment set up locally:
+
+```bash
+cd backend
+pip install -r requirements.txt
+pytest
+```
+
+## Project Structure
+
+```
+.
+├── ARCHITECTURE.md       # Full technical spec, schema, and API design
+├── docker-compose.yml    # Local dev stack: Postgres, Redis, MinIO, API, worker
+└── backend/
+    ├── app/
+    │   ├── api/          # FastAPI routers (auth, documents, search, chat, workflows, collections)
+    │   ├── core/         # Config, security, dependencies
+    │   ├── db/           # Session management and Alembic migrations
+    │   ├── models/       # SQLAlchemy models
+    │   ├── schemas/      # Pydantic request/response schemas
+    │   ├── services/     # Ingestion, embeddings, RAG, LLM providers, workflows
+    │   └── workers/      # Celery app and background tasks
+    └── tests/
+```
+
+## Contact
+
+Maintained by **Pruthviraj**. For questions, issues, or contributions, please open an issue or pull request on the repository.
